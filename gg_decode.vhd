@@ -14,7 +14,7 @@ port(
 	gg_vs 		: in STD_LOGIC;
 	gg_hs  		: in STD_LOGIC;
 -- BRAM interface
-	addra		: out STD_LOGIC_VECTOR(14 downto 0);
+	addra		: out STD_LOGIC_VECTOR(15 downto 0);
 	dina		: out STD_LOGIC_VECTOR(11 downto 0);
 	wea			: out STD_LOGIC_VECTOR( 0 downto 0)
 );
@@ -34,9 +34,9 @@ signal gg_clk_sr		: STD_LOGIC_VECTOR(2 downto 0)	:= (others => '0');
 
 
 -- Counter definitions
-signal addr_cnt			: UNSIGNED(14 downto 0)			:= (others => '0');
+signal addr_cnt			: UNSIGNED(15 downto 0)			:= (others => '0');
 signal clk_cnt			: integer range 0 to 1          := 0;
-signal x_cnt  			: integer range 0 to 129	    := 0;
+signal x_cnt  			: integer range 0 to 159	    := 0;
 signal y_cnt  			: integer range 0 to 145		:= 0;
 signal pix_cnt  		: integer range 0 to 2   		:= 0;
 signal clk_cnt_l  		: integer range 0 to 131   		:= 0;
@@ -56,9 +56,9 @@ begin
 process(gg_clk)
 begin
 	if rising_edge(gg_clk) then
-		--if(hs_sr(2 downto 1) = "10") then
+		--if(hs_sr(2 downto 1) = "10" or vs_sr(2 downto 1) = "01") then
 		--	clk_cnt <= 0;
-		--	clk_div <= '1';
+		--	clk_div <= not clk_div;
 		--end if;
 		--if(gg_clk_sr(2 downto 1) = "01") then
 			if clk_cnt = 1 then
@@ -88,7 +88,7 @@ begin
 	if rising_edge(aclk) then
 		case sm_state is 
 			when ST_IDLE =>
-				--wea 						<= "0";
+				wea 						<= "0";
 				gg_rst 						<= '1';
 				if(vs_sr(2 downto 1) = "01") then -- If rising edge of vsync detected, start pixel decoding
 					sm_state 				<= ST_LEFT;
@@ -96,10 +96,11 @@ begin
 					x_cnt 					<= 0;
 					y_cnt 					<= 0;
 					pix_cnt 				<= 0;
-				elsif(hs_sr(2 downto 1) = "10" and y_cnt <= 143) then
+				elsif(hs_sr(2 downto 1) = "10" and y_cnt <= 144) then
 					sm_state 				<= ST_LEFT;
 					pix_cnt 				<= 0;
-				elsif(hs_sr(2 downto 1) = "10" and y_cnt > 143) then
+					x_cnt 					<= 0;
+				elsif(hs_sr(2 downto 1) = "10" and y_cnt > 144) then
 					sm_state 				<= ST_IDLE;
 					y_cnt  					<= y_cnt + 1;
 					pix_cnt 				<= 0;
@@ -109,8 +110,10 @@ begin
 				end if;
 				if(vs_sr(2 downto 1) = "10" or vs_sr ="000") then
 					sm_state 				<= ST_IDLE;
+					wea 					<= "0";
 				end if ;
 			when ST_LEFT =>
+				wea 					<= "0";
 				if(clk_sr(2 downto 1) = "01") then
 					clk_cnt_l  				<= clk_cnt_l + 1;
 					if(clk_cnt_l = 131) then
@@ -119,50 +122,43 @@ begin
 					end if;
 				end if ;
 			when ST_RED => -- First red pixel gets decoded
-				--wea    						<= "0";
+				wea    						<= "0";
 				if (clk_sr(2 downto 1) = clk_edge_mux) then
 					gg_pix_dec(11 downto 8) <= gg_data;
 					sm_state 				<= ST_GREEN;
-					pix_cnt 				<= pix_cnt + 1;
-				--elsif(vs_sr(2 downto 1) = "10" or vs_sr(2 downto 1) = "01") then
-				--	sm_state 				<= ST_RED;
-				--	addr_cnt 				<= (others => '0');
-				--	x_cnt 					<= 0;
-				--	y_cnt 					<= 0;
-				--	pix_cnt 				<= 0;
-				--elsif(hs_sr(2 downto 1) = "10") then
-				--	sm_state 				<= ST_RED;
-				--	x_cnt  					<= 0;												
+					pix_cnt 				<= pix_cnt + 1;											
 				end if ;
 			when ST_GREEN => -- Second is green pixel 
+				wea 					<= "0";
 				if(clk_sr(2 downto 1) = not clk_edge_mux) then
 					gg_pix_dec(7 downto 4)  <= gg_data;
 					sm_state  			    <= ST_BLUE;
 					pix_cnt 				<= pix_cnt + 1;
 				end if;
 			when ST_BLUE => -- Third is blue pixel
+				wea 					<= "0";
 				if(clk_sr(2 downto 1) = clk_edge_mux) then
 					gg_pix_dec(3 downto 0)  <= gg_data;
 					sm_state  			    <= ST_WRITE;
 					pix_cnt 				<= pix_cnt + 1;
 				end if ;
-				--if(vs_sr(2 downto 1) = "10" or vs_sr = "000") then
-				--	sm_state   				<= ST_IDLE;
-				--end if;
 			when ST_WRITE => -- then write 12 bit RGB pixel to memory/buffer for processing later
-				--wea  						<= "1";
 				clk_edge_tog    			<= not clk_edge_tog;
 				addr_cnt  					<= addr_cnt + 1;
 				x_cnt  						<= x_cnt + 1;
+				addra  						<= STD_LOGIC_VECTOR(addr_cnt);
+				dina   						<= gg_pix_dec;
+				wea    						<= "1";
 				if(x_cnt = 159) then
 					sm_state   				<= ST_IDLE;
-					gg_rst 					<= '1';
-					x_cnt 					<= 0;
+					--gg_rst 					<= '1';
+					--x_cnt 					<= 0;
+					--wea 					<= "0";
 					--pix_cnt 				<= 0;
-					y_cnt 					<= y_cnt + 1;
-					if(y_cnt >= 145) then
-						sm_state   				<= ST_IDLE;						
-					end if ;
+					--y_cnt 					<= y_cnt + 1;
+					--if(y_cnt >= 145) then
+					--	sm_state   				<= ST_IDLE;						
+					--end if ;
 				else
 					sm_state   				<= ST_RED;
 					gg_rst 					<= '0';
@@ -170,10 +166,6 @@ begin
 		end case;
 	end if;
 end process;
-
-addra  						<= STD_LOGIC_VECTOR(addr_cnt);
-dina   						<= gg_pix_dec;
-wea    						<= "1";
 
 clk_edge_mux <= "10" when clk_edge_tog ='0' else "01"; -- Since there is no CLKA/CLKB signals, the edges need to alternate to emulate the edges of the two different clk signals that control the pixel decoding
 
