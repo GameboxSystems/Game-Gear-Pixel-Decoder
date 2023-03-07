@@ -6,3 +6,5 @@ VHDL implementation of a pixel decoder for the Sega Game Gear
 * 5/29/2022 alpha v0.2 - tested with hardware and pixel decoding works but with artifacts. further testing needed. Will be updated accordingly.
 
 * 5/30/2022 v0.3 - Tested working implementation of the Game Gear pixel decoder. Will update with top module and constraints at a later point.
+
+* 3/7/2023 v0.4 - Adjusted alignment of the screen in the drawn frame.
