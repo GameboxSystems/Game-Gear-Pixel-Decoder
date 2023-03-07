@@ -70,8 +70,8 @@ process(aclk)
 begin
 	if rising_edge(aclk) then
 		if(hs_sr(2 downto 1) = "10" or vs_sr(2 downto 1) = "01") then
-			clk_cnt <= 1;
-			clk_div <= '1';
+			clk_cnt <= 0;
+			clk_div <= '0';
 		end if;
 		if(gg_clk_sr(2 downto 1) = "01") then
 			if clk_cnt = 1 then
@@ -116,7 +116,7 @@ begin
 				elsif(hs_sr(2 downto 1) = "10" and (vs_sr(2 downto 1) = "01" or vs_sr(2 downto 1) = "11")) then
 					user_drv				<= '0';
 					last_drv				<= '1';
-					if (y_cnt > 8 and gg_sms = '1') or gg_sms = '0' then
+					if (y_cnt > 10 and gg_sms = '1') or gg_sms = '0' then
 						valid_drv				<= '1';
 					else
 						valid_drv 				<= '0';
@@ -199,12 +199,12 @@ begin
 	end if;
 end process;
 
-x_cnt_limit       <= 159 when gg_sms = '0' else
+x_cnt_limit       <= 163 when gg_sms = '0' else
 					 255 when gg_sms = '1';
 y_cnt_limit 	  <= 143 when gg_sms = '0' else 
 					 191 when gg_sms = '1';
-clk_cnt_l_limit   <= 132 when gg_sms = '0' else
-					 65  when gg_sms = '1';
+clk_cnt_l_limit   <= 131 when gg_sms = '0' else
+					 68  when gg_sms = '1';
 
 x_cnt_out  		<= TO_UNSIGNED(x_cnt,8);
 y_cnt_out  		<= TO_UNSIGNED(y_cnt,8);
